@@ -1,4 +1,5 @@
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
@@ -59,8 +60,16 @@ public class ArticleExaminer {
 		}
 		//if we found one of our nz topics in the trove article, we should add some additional info
 		if(troves.get(JSONArticle.getInt("id")) != null){
-			//TODO: consider filtering these topics so that we are only looking at those topics that are also in the "topics" map
-			String wikiMarkup = this.tagger.tag(processedArticleText, articleTopics, RepeatMode.ALL);
+			Collection<Topic> relevantTopics = new ArrayList<>();
+			for(Topic eachTopic: articleTopics){
+				if(topics.containsKey(eachTopic.getTitle().toLowerCase())){
+					relevantTopics.add(eachTopic);
+				}
+				else{//DEBUG ONLY
+					System.out.println("NOT adding the topic " + eachTopic.getTitle().toLowerCase() + " to the tagging, because it is not an nz topic");
+				}
+			}
+			String wikiMarkup = this.tagger.tag(processedArticleText, relevantTopics, RepeatMode.ALL);
 			troves.get(JSONArticle.getInt("id")).setWikitext(processWikiMarkup(wikiMarkup));
 		}
 	}
