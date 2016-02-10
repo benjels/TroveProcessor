@@ -12,6 +12,7 @@ import java.nio.file.Path;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.nio.file.*;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import org.json.JSONObject;
@@ -74,6 +75,10 @@ public class TroveArticleVisitor implements FileVisitor{
 			e.printStackTrace();
 		}finally{
 			System.out.println("finished walking file tree after approx " + ((System.currentTimeMillis() - startTime)/1000)  + " seconds : )" );
+			System.out.println("at this point the troves are like: ");
+			for(TroveArticle each: this.troves.values()){
+				System.out.println("wikitext:" + each.getWikitext());
+			}
 			return new TroveExplorerDump(this.topics, this.troves);
 		}
 		
@@ -87,13 +92,16 @@ public class TroveArticleVisitor implements FileVisitor{
 		File possibleJsonFile = possibleJsonFilePath.toFile();
 		//at this stage we have a file, but we do not know if it is useful to us.
 		if(possibleJsonFile.toString().substring(possibleJsonFile.toString().length() - 5, possibleJsonFile.toString().length()).equals(".json")){
-			JSONObject JSONArticle = new JSONObject(Files.readAllLines(possibleJsonFilePath, Charset.availableCharsets().get("ISO-8859-1")).get(0));
-			//now we have our json version of the article, run the topic examiner over it
-			try {
-				this.troveExaminer.findTopicsInJSONArticle(JSONArticle, this.topics, this.troves); 
-			} catch (Exception e) {
-				System.out.println("exception incurred trying to get the value associated with \"fulltext\" key in the file: " + filePath);
-				e.printStackTrace();
+			List<String> JSONArticles = Files.readAllLines(possibleJsonFilePath, Charset.availableCharsets().get("ISO-8859-1"));
+			for(String eachArticle: JSONArticles){
+				JSONObject JSONArticle =  new JSONObject(eachArticle);
+				//now we have our json version of the article, run the topic examiner over it
+				try {
+					this.troveExaminer.findTopicsInJSONArticle(JSONArticle, this.topics, this.troves); 
+				} catch (Exception e) {
+					System.out.println("exception incurred while using WikipediaMiner tools to examine the file: " + filePath);
+					e.printStackTrace();
+				}
 			}
 		}else{
 			System.out.println("encountered a non-json file: " + filePath);

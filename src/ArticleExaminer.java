@@ -1,7 +1,9 @@
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -44,36 +46,48 @@ public class ArticleExaminer {
 	public void findTopicsInJSONArticle(JSONObject JSONArticle, HashMap<String, WikipediaTopic> topics, HashMap<Integer, TroveArticle> troves) throws Exception {
 		//pre process our article's text
 		String articleBodyText = JSONArticle.getString("fulltext");
+		System.out.println("about to pre process: " + articleBodyText);
 		PreprocessedDocument processedArticleText = preprocessor.preprocess(articleBodyText);
+		System.out.println("just processed: " + processedArticleText);
 		Collection<Topic> articleTopics = this.topicDetector.getTopics(processedArticleText, null);
 		
 		//now examine the topics in our text
+		boolean troveArticleAddedToMap = false;
 		for(Topic eachTopic: articleTopics){
+			System.out.println("detected the following topic: " + eachTopic.getTitle());
 			if(topics.get(eachTopic.getTitle().toLowerCase()) != null){//i.e. if this topic we found in the trove articles is one of the topics we identified with out python wikipedia scraper...
 				//if we found one of our topics, then this is an nz article that we want to keep and process further
-				troves.put(JSONArticle.getInt("id"), new TroveArticle(JSONArticle));
+				if(!troveArticleAddedToMap){
+					troves.put(JSONArticle.getInt("id"), new TroveArticle(JSONArticle)); 
+				}
+				//set our bool to true so that we don't add the trove article to our map again
+				troveArticleAddedToMap = true;
 				//add this trove article as a related article of this topic
 				topics.get(eachTopic.getTitle().toLowerCase()).addRelatedTroveArticleID(JSONArticle.getInt("id"));
 				//add this topic as a related topic of this trove article
 				troves.get(JSONArticle.getInt("id")).addRelatedWikipediaTopic(eachTopic.getTitle().toLowerCase());
 			}
 		}
-		//if we found one of our nz topics in the trove article, we should add some additional info
+		//if we found one of our nz topics in the trove article and put it in the map of troves, generate and add some annotated text
 		if(troves.get(JSONArticle.getInt("id")) != null){
-			Collection<Topic> relevantTopics = new ArrayList<>();
+			
+			HashSet<Topic> relevantTopics = new HashSet<>();
+			
 			for(Topic eachTopic: articleTopics){
 				if(topics.containsKey(eachTopic.getTitle().toLowerCase())){
 					relevantTopics.add(eachTopic);
 				}
-				else{//DEBUG ONLY
-					System.out.println("NOT adding the topic " + eachTopic.getTitle().toLowerCase() + " to the tagging, because it is not an nz topic");
-				}
 			}
+			System.out.println("title: " + JSONArticle.getInt("id") + " topic count: " + relevantTopics.size());
+
+			List<Topic> linkWeightedTopics = this.linkDetector.getWeightedTopics(relevantTopics);
+			Collections.sort(linkWeightedTopics);
+
 			String wikiMarkup = this.tagger.tag(processedArticleText, relevantTopics, RepeatMode.ALL);
 			troves.get(JSONArticle.getInt("id")).setWikitext(processWikiMarkup(wikiMarkup));
 		}
 	}
-	
+	//TODO: this is not working all of the time e.g. article 12329345 look at the annotation produced for ashburton
 	 /**
      * converts a string of wikimedia markup text to a similar string where the titles of detected topics are replaced by URLs that link to the articles for those topics
      * @param wikiText the original text
@@ -81,16 +95,15 @@ public class ArticleExaminer {
      */
 	private String processWikiMarkup(String wikiText){
 		String alterredWikiText = wikiText;
-		System.out.println("processing: " + alterredWikiText);
 		Pattern pattern = Pattern.compile("\\[\\[[^\\]|\\|]*\\]\\]|\\[\\[[^\\[\\[]*\\|");
 		Matcher titleFinder = pattern.matcher(alterredWikiText);
 		int indexToProcessFrom = 0;
 		while(titleFinder.find(indexToProcessFrom)){
 			//find a topic title and insert the URL version of it. 
 			String aTitle = alterredWikiText.substring(titleFinder.start(), titleFinder.end());
-			String URLOfFoundTitle = "https://en.wikipedia.org/wiki/" + aTitle.replaceAll("\\[\\[|\\||\\]\\]", "").replaceAll(" ", "_");
+			String URLOfFoundTitle = aTitle.replaceAll("\\[\\[|\\||\\]\\]", "").replaceAll(" ", "_");
 			StringBuffer text = new StringBuffer(alterredWikiText);
-			text = text.insert(titleFinder.start(), "[ " + URLOfFoundTitle + " ]");
+			text = text.insert(titleFinder.start(), "((" + URLOfFoundTitle + "))");
 			alterredWikiText = text.toString();
 			indexToProcessFrom = titleFinder.start() + (titleFinder.end() - titleFinder.start()) + URLOfFoundTitle.length() + 2;//i.e. the offset where it was first found + length of inserted URL + length of detected titles
 			titleFinder = pattern.matcher(alterredWikiText);

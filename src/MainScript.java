@@ -18,11 +18,11 @@ import com.sleepycat.je.EnvironmentLockedException;
 public class MainScript {
 	
 	//some config vars mostly file paths that are easier to alter here...
-	private static final String TROVE_SOURCE_ARTICLES_DIR = "C:\\!2015SCHOLARSHIPSTUFF\\dummyNzTest\\";
+	private static final String TROVE_SOURCE_ARTICLES_DIR = "C:\\!2015SCHOLARSHIPSTUFF\\1920sTAS\\1924\\12\\31\\fake.json";
 	private static final String WIKI_CFG_DIR = "C:\\Users\\user\\workspace\\wikipedia-miner-1.2.0\\configs\\en.xml";
-	private static final String TOPIC_RELATED_WIKIPEDIA_TITLES_DIR = "C:\\python_environments\\WikipediaListArticleFinderGitDir\\WikipediaListArticleFinderPycharmProj\\29thlog.txt";
-	private static final String TOPIC_JSON_OUTPUT_DIR = "WikipediaJSON\\";
-	private static final String TROVE_JSON_OUTPUT_DIR = "TroveJSON\\";
+	private static final String TOPIC_RELATED_WIKIPEDIA_TITLES_DIR = "C:\\python_environments\\WikipediaListArticleFinderGitDir\\WikipediaListArticleFinderPycharmProj\\5thlog.txt";
+	private static final String TOPIC_JSON_OUTPUT_DIR = "rubbishTopics\\";
+	private static final String TROVE_JSON_OUTPUT_DIR = "rubbishTrove\\";
 	
 	
 	
@@ -63,6 +63,7 @@ public class MainScript {
 	    	JSONObject articleJSON = eachTroveArticle.getOriginalJSON();
 	    	troveJSON.put("uid", articleJSON.getInt("id"));
 	    	troveJSON.put("title", articleJSON.getString("heading"));
+	    	System.out.println("writing a trove article to file with the heading: " + articleJSON.getString("heading"));
 	    	troveJSON.put("relatedTopics", eachTroveArticle.getRelatedTopicTitles());
 	    	troveJSON.put("fulltext", articleJSON.getString("fulltext"));
 	    	troveJSON.put("wikitext", eachTroveArticle.getWikitext());
